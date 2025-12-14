@@ -601,7 +601,8 @@ export default function Editor({ initialGpx }: EditorProps) {
               </Button>
               {/* Demo button */}
               <Button
-                variant="outline"
+                size="lg"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6"
                 onClick={async () => {
                   const response = await fetch('/Velodash-taipei.gpx')
                   const text = await response.text()
@@ -609,7 +610,7 @@ export default function Editor({ initialGpx }: EditorProps) {
                   await parseFile(file)
                 }}
               >
-                試玩範例路線
+                🚴 試玩範例路線
               </Button>
             </div>
           </div>
