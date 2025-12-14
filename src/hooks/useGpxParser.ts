@@ -88,31 +88,66 @@ function parseGpxFile(xmlString: string): ParsedGpx | null {
   }
 }
 
-export function getPointAtDistance(track: GpxTrack, targetDistance: number): { point: GpxPoint; index: number } {
-  let accumulatedDistance = 0
-  
+// 緩存預計算的累積距離
+const distanceCacheMap = new WeakMap<GpxTrack, number[]>()
+
+function getOrCreateDistanceCache(track: GpxTrack): number[] {
+  let cache = distanceCacheMap.get(track)
+  if (cache) return cache
+
+  // 預計算每個點的累積距離
+  cache = new Array(track.points.length)
+  cache[0] = 0
   for (let i = 1; i < track.points.length; i++) {
     const prev = track.points[i - 1]
     const curr = track.points[i]
-    const segmentDistance = calculateDistance(prev.lat, prev.lon, curr.lat, curr.lon)
-    
-    if (accumulatedDistance + segmentDistance >= targetDistance) {
-      const ratio = (targetDistance - accumulatedDistance) / segmentDistance
-      return {
-        point: {
-          lat: prev.lat + (curr.lat - prev.lat) * ratio,
-          lon: prev.lon + (curr.lon - prev.lon) * ratio,
-          ele: prev.ele !== undefined && curr.ele !== undefined
-            ? prev.ele + (curr.ele - prev.ele) * ratio
-            : curr.ele,
-        },
-        index: i,
-      }
-    }
-    accumulatedDistance += segmentDistance
+    cache[i] = cache[i - 1] + calculateDistance(prev.lat, prev.lon, curr.lat, curr.lon)
   }
-  
-  return { point: track.points[track.points.length - 1], index: track.points.length - 1 }
+  distanceCacheMap.set(track, cache)
+  return cache
+}
+
+export function getPointAtDistance(track: GpxTrack, targetDistance: number): { point: GpxPoint; index: number } {
+  const distances = getOrCreateDistanceCache(track)
+
+  // 二分查找目標距離所在的區段
+  let left = 0
+  let right = distances.length - 1
+
+  while (left < right) {
+    const mid = Math.floor((left + right) / 2)
+    if (distances[mid] < targetDistance) {
+      left = mid + 1
+    } else {
+      right = mid
+    }
+  }
+
+  const i = left
+  if (i === 0) {
+    return { point: track.points[0], index: 0 }
+  }
+
+  const prev = track.points[i - 1]
+  const curr = track.points[i]
+  const segmentDistance = distances[i] - distances[i - 1]
+
+  if (segmentDistance === 0) {
+    return { point: curr, index: i }
+  }
+
+  const ratio = (targetDistance - distances[i - 1]) / segmentDistance
+
+  return {
+    point: {
+      lat: prev.lat + (curr.lat - prev.lat) * ratio,
+      lon: prev.lon + (curr.lon - prev.lon) * ratio,
+      ele: prev.ele !== undefined && curr.ele !== undefined
+        ? prev.ele + (curr.ele - prev.ele) * ratio
+        : curr.ele,
+    },
+    index: i,
+  }
 }
 
 export function useGpxParser() {

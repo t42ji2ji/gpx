@@ -105,6 +105,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
   const lastUpdateRef = useRef<number>(0)
   const lastBearingRef = useRef<number>(0) // 地圖旋轉角度 (story mode)
   const markerBearingRef = useRef<number>(0) // 標記方向角度
+  const storyModeInitRef = useRef<boolean>(false) // 追蹤 story mode 是否剛開啟
 
   useImperativeHandle(ref, () => ({
     getMapRef: () => mapRef.current,
@@ -126,6 +127,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
     }
   }, [bounds, fitBounds, storyMode])
 
+
   // 計算標記方向（不論是否在 story mode）
   useEffect(() => {
     if (currentPosition && nextPosition) {
@@ -138,13 +140,24 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
     }
   }, [currentPosition, nextPosition])
 
+  // 當 storyMode 開啟時，重置初始化標記
+  useEffect(() => {
+    if (storyMode) {
+      storyModeInitRef.current = true
+    }
+  }, [storyMode])
+
   // Story mode: follow current position with pitch and bearing
   useEffect(() => {
     if (storyMode && currentPosition && mapRef.current) {
       const now = Date.now()
-      // Throttle updates to ~10fps for smoother animation
-      if (now - lastUpdateRef.current < 100) return
+      const isInit = storyModeInitRef.current
+
+      // 第一次進入 story mode 時不節流，立即移動到起點預載 tiles
+      if (!isInit && now - lastUpdateRef.current < 100) return
+
       lastUpdateRef.current = now
+      storyModeInitRef.current = false
 
       const map = mapRef.current.getMap()
       if (map) {
@@ -163,13 +176,14 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
         }
 
         // Use easeTo for smooth transitions
+        // 初始化時用較長的 duration 讓用戶看到過渡效果
         map.easeTo({
           center: [currentPosition[0], currentPosition[1]],
           zoom: storyZoom,
           pitch: storyPitch,
           bearing: targetBearing,
-          duration: 150,
-          easing: (t) => t, // Linear easing for consistent speed
+          duration: isInit ? 1000 : 150,
+          easing: (t) => t,
         })
       }
     }

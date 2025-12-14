@@ -145,9 +145,7 @@ export default function Editor({ initialGpx }: EditorProps) {
       const newProgress = prev + increment
       if (newProgress >= 1) {
         setIsPlaying(false)
-        if (videoSettings.storyMode) {
           setTimeout(() => setShowCompletion(true), 400)
-        }
         return 1
       }
       return newProgress

@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button'
-import { Toggle } from '@/components/ui/toggle'
 import { VideoSettings as VideoSettingsType, ASPECT_RATIOS } from '@/types/gpx'
 
 interface VideoSettingsProps {
@@ -18,16 +17,23 @@ export default function VideoSettings({ settings, onChange }: VideoSettingsProps
   return (
     <div className="space-y-4">
       {/* Story Mode Toggle */}
-      <Toggle
-        pressed={settings.storyMode}
-        onPressedChange={pressed => onChange({ ...settings, storyMode: pressed })}
-        className="w-full justify-between px-3"
+      <div
+        className="flex items-center justify-between w-full px-3 py-2 rounded-md border cursor-pointer hover:bg-muted/50 transition-colors"
+        onClick={() => onChange({ ...settings, storyMode: !settings.storyMode })}
       >
-        <span>故事模式</span>
-        <span className="text-xs text-muted-foreground">
-          {settings.storyMode ? '開啟' : '關閉'}
-        </span>
-      </Toggle>
+        <span className="text-sm font-medium">跟隨視角</span>
+        <div
+          className={`relative w-11 h-6 rounded-full transition-colors ${
+            settings.storyMode ? 'bg-primary' : 'bg-muted'
+          }`}
+        >
+          <div
+            className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+              settings.storyMode ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </div>
+      </div>
 
       {settings.storyMode && (
         <div className="space-y-3 pl-2 border-l-2 border-primary/30">

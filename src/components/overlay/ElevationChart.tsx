@@ -48,14 +48,31 @@ export default memo(function ElevationChart({
   }, [track])
 
   const currentData = useMemo(() => {
-    const idx = data.findIndex(d => d.distance >= currentDistance)
-    if (idx === -1) return data[data.length - 1]
+    // 二分查找優化：O(log n) 替代 O(n)
+    let left = 0
+    let right = data.length - 1
+
+    while (left < right) {
+      const mid = Math.floor((left + right) / 2)
+      if (data[mid].distance < currentDistance) {
+        left = mid + 1
+      } else {
+        right = mid
+      }
+    }
+
+    const idx = left
     if (idx === 0) return data[0]
-    
+    if (idx >= data.length) return data[data.length - 1]
+
     const prev = data[idx - 1]
     const curr = data[idx]
-    const ratio = (currentDistance - prev.distance) / (curr.distance - prev.distance)
-    
+    const segmentDist = curr.distance - prev.distance
+
+    if (segmentDist === 0) return curr
+
+    const ratio = (currentDistance - prev.distance) / segmentDist
+
     return {
       distance: currentDistance,
       elevation: prev.elevation + (curr.elevation - prev.elevation) * ratio,
