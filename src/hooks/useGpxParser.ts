@@ -1,0 +1,149 @@
+import { gpx } from '@tmcw/togeojson'
+import { Feature, LineString, Position } from 'geojson'
+import { useCallback, useState } from 'react'
+import { GpxPoint, GpxTrack, ParsedGpx } from '@/types/gpx'
+
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
+function parseGpxFile(xmlString: string): ParsedGpx | null {
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(xmlString, 'text/xml')
+    const geojsonData = gpx(doc)
+
+    const lineFeature = geojsonData.features.find(
+      (f): f is Feature<LineString> => f.geometry.type === 'LineString'
+    )
+
+    if (!lineFeature) return null
+
+    const coordinates = lineFeature.geometry.coordinates
+    const points: GpxPoint[] = coordinates.map((coord: Position) => ({
+      lon: coord[0],
+      lat: coord[1],
+      ele: coord[2],
+    }))
+
+    let totalDistance = 0
+    let elevationGain = 0
+    let elevationLoss = 0
+    let minEle = Infinity
+    let maxEle = -Infinity
+
+    for (let i = 0; i < points.length; i++) {
+      const point = points[i]
+      if (point.ele !== undefined) {
+        minEle = Math.min(minEle, point.ele)
+        maxEle = Math.max(maxEle, point.ele)
+      }
+
+      if (i > 0) {
+        const prev = points[i - 1]
+        totalDistance += calculateDistance(prev.lat, prev.lon, point.lat, point.lon)
+
+        if (prev.ele !== undefined && point.ele !== undefined) {
+          const eleDiff = point.ele - prev.ele
+          if (eleDiff > 0) elevationGain += eleDiff
+          else elevationLoss += Math.abs(eleDiff)
+        }
+      }
+    }
+
+    const track: GpxTrack = {
+      name: lineFeature.properties?.name || undefined,
+      points,
+      totalDistance,
+      elevationGain,
+      elevationLoss,
+      minElevation: minEle === Infinity ? 0 : minEle,
+      maxElevation: maxEle === -Infinity ? 0 : maxEle,
+    }
+
+    const lats = points.map(p => p.lat)
+    const lons = points.map(p => p.lon)
+
+    return {
+      name: geojsonData.features[0]?.properties?.name,
+      tracks: [track],
+      geojson: lineFeature,
+      bounds: {
+        minLat: Math.min(...lats),
+        maxLat: Math.max(...lats),
+        minLon: Math.min(...lons),
+        maxLon: Math.max(...lons),
+      },
+    }
+  } catch (error) {
+    console.error('Error parsing GPX:', error)
+    return null
+  }
+}
+
+export function getPointAtDistance(track: GpxTrack, targetDistance: number): { point: GpxPoint; index: number } {
+  let accumulatedDistance = 0
+  
+  for (let i = 1; i < track.points.length; i++) {
+    const prev = track.points[i - 1]
+    const curr = track.points[i]
+    const segmentDistance = calculateDistance(prev.lat, prev.lon, curr.lat, curr.lon)
+    
+    if (accumulatedDistance + segmentDistance >= targetDistance) {
+      const ratio = (targetDistance - accumulatedDistance) / segmentDistance
+      return {
+        point: {
+          lat: prev.lat + (curr.lat - prev.lat) * ratio,
+          lon: prev.lon + (curr.lon - prev.lon) * ratio,
+          ele: prev.ele !== undefined && curr.ele !== undefined
+            ? prev.ele + (curr.ele - prev.ele) * ratio
+            : curr.ele,
+        },
+        index: i,
+      }
+    }
+    accumulatedDistance += segmentDistance
+  }
+  
+  return { point: track.points[track.points.length - 1], index: track.points.length - 1 }
+}
+
+export function useGpxParser() {
+  const [parsedGpx, setParsedGpx] = useState<ParsedGpx | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const parseFile = useCallback(async (file: File) => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const text = await file.text()
+      const result = parseGpxFile(text)
+
+      if (result) {
+        setParsedGpx(result)
+      } else {
+        setError('無法解析 GPX 文件')
+      }
+    } catch (err) {
+      setError('讀取文件時發生錯誤')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  const reset = useCallback(() => {
+    setParsedGpx(null)
+    setError(null)
+  }, [])
+
+  return { parsedGpx, isLoading, error, parseFile, reset }
+}
