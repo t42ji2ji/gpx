@@ -14,9 +14,9 @@ export default function TitleOverlay({ title, fontSize = 16, theme = 'dark', cla
   const styles = getOverlayStyles(theme)
 
   return (
-    <div className={`px-6 py-3 rounded-lg ${styles.container} ${className}`}>
-      <h1 
-        className={`font-bold whitespace-pre-wrap ${styles.text}`}
+    <div className={`px-6 py-3 rounded-lg max-w-[calc(100%-2rem)] ${styles.container} ${className}`}>
+      <h1
+        className={`font-bold whitespace-pre-wrap break-words text-center ${styles.text}`}
         style={{ fontSize: `${fontSize}px`, lineHeight: 1.3 }}
       >
         {title}

@@ -574,6 +574,16 @@ export default function Editor({ initialGpx }: EditorProps) {
                   <span className="hidden sm:inline">贊助我讓網站更長久</span>
                   <span className="sm:hidden">贊助</span>
                 </a>
+                <a
+                  href="https://dorara.app/about"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-muted text-foreground rounded-md font-medium text-sm hover:bg-muted/80 transition-colors"
+                >
+                  <span>🎨</span>
+                  <span className="hidden sm:inline">其他作品</span>
+                  <span className="sm:hidden">作品</span>
+                </a>
               </div>
             </div>
           </>
