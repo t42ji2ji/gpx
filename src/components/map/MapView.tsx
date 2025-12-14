@@ -223,9 +223,9 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
             id="route-bg-line"
             type="line"
             paint={{
-              'line-color': '#ccc',
-              'line-width': routeStyle.width + 2,
-              'line-opacity': 0.3,
+              'line-color': routeStyle.color,
+              'line-width': routeStyle.width,
+              'line-opacity': 0.25,
             }}
           />
         </Source>

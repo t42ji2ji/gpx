@@ -87,7 +87,8 @@ export default function Editor({ initialGpx }: EditorProps) {
   const [showCompletion, setShowCompletion] = useState(false)
 
   const [expandedPanels, setExpandedPanels] = useState({
-    video: true,
+    camera: true,
+    video: false,
     map: false,
     route: false,
     overlay: false,
@@ -238,8 +239,73 @@ export default function Editor({ initialGpx }: EditorProps) {
   const settingsContent = (
     <div className="space-y-2">
 
+      {/* Camera/Story Mode Panel */}
+      <div className="border rounded-lg">
+        <button
+          onClick={() => togglePanel('camera')}
+          className="w-full flex items-center justify-between p-3 text-left hover:bg-muted/50 transition-colors"
+        >
+          <span className="font-semibold text-sm">跟隨視角</span>
+          {expandedPanels.camera ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {expandedPanels.camera && (
+          <div className="px-3 pb-3 space-y-3">
+            {/* Story Mode Toggle */}
+            <div
+              className="flex items-center justify-between w-full px-3 py-2 rounded-md border cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => setVideoSettings(prev => ({ ...prev, storyMode: !prev.storyMode }))}
+            >
+              <span className="text-sm font-medium">啟用跟隨視角</span>
+              <div
+                className={`relative w-11 h-6 rounded-full transition-colors ${
+                  videoSettings.storyMode ? 'bg-primary' : 'bg-muted'
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    videoSettings.storyMode ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </div>
+            </div>
 
-  {/* Map Style Panel */}
+            {videoSettings.storyMode && (
+              <div className="space-y-3 pl-2 border-l-2 border-primary/30">
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">
+                    鏡頭縮放: {videoSettings.storyZoom}
+                  </label>
+                  <input
+                    type="range"
+                    min={10}
+                    max={18}
+                    step={0.5}
+                    value={videoSettings.storyZoom}
+                    onChange={e => setVideoSettings(prev => ({ ...prev, storyZoom: Number(e.target.value) }))}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">
+                    俯瞰角度: {videoSettings.storyPitch}°
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={60}
+                    step={5}
+                    value={videoSettings.storyPitch}
+                    onChange={e => setVideoSettings(prev => ({ ...prev, storyPitch: Number(e.target.value) }))}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Map Style Panel */}
       <div className="border rounded-lg">
         <button
           onClick={() => togglePanel('map')}
@@ -255,14 +321,13 @@ export default function Editor({ initialGpx }: EditorProps) {
         )}
       </div>
 
-
       {/* Video Settings Panel */}
       <div className="border rounded-lg">
         <button
           onClick={() => togglePanel('video')}
           className="w-full flex items-center justify-between p-3 text-left hover:bg-muted/50 transition-colors"
         >
-          <span className="font-semibold text-sm">地圖視角/影片設定</span>
+          <span className="font-semibold text-sm">影片設定</span>
           {expandedPanels.video ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
         {expandedPanels.video && (
