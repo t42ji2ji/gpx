@@ -591,13 +591,27 @@ export default function Editor({ initialGpx }: EditorProps) {
           <div className="text-center text-muted-foreground">
             <p className="text-lg mb-2">請上傳 GPX 文件開始編輯</p>
             <p className="text-sm mb-4">支援標準 GPX 格式</p>
-            {/* Mobile upload button */}
-            <Button
-              className="md:hidden"
-              onClick={() => setShowMobileSettings(true)}
-            >
-              選擇檔案
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {/* Mobile upload button */}
+              <Button
+                className="md:hidden"
+                onClick={() => setShowMobileSettings(true)}
+              >
+                選擇檔案
+              </Button>
+              {/* Demo button */}
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  const response = await fetch('/Velodash-taipei.gpx')
+                  const text = await response.text()
+                  const file = new File([text], 'Velodash-taipei.gpx', { type: 'application/gpx+xml' })
+                  await parseFile(file)
+                }}
+              >
+                試玩範例路線
+              </Button>
+            </div>
           </div>
         )}
       </div>
