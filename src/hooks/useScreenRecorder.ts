@@ -2,7 +2,6 @@ import { useRef, useState, useCallback } from 'react'
 
 interface ScreenRecordingOptions {
   duration: number
-  element: HTMLElement
   onStart: () => void
   onProgress: (progress: number) => void
   onComplete: () => void
@@ -21,24 +20,33 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
   const cancelledRef = useRef(false)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const progressIntervalRef = useRef<number | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
   const startRecording = useCallback(async (options: ScreenRecordingOptions): Promise<Blob | null> => {
-    const { duration, element, onStart, onProgress, onComplete } = options
+    const { duration, onStart, onProgress, onComplete } = options
 
     cancelledRef.current = false
     setIsRecording(true)
     setRecordingProgress(0)
 
-    // Find the canvas element inside the container (Mapbox GL canvas)
-    const mapCanvas = element.querySelector('canvas')
-    if (!mapCanvas) {
-      console.error('No canvas found in element')
+    // Use Screen Capture API - let user select the area to record
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          displaySurface: 'window',
+          frameRate: 30,
+        },
+        audio: false,
+        // @ts-expect-error preferCurrentTab is a valid option in Chrome
+        preferCurrentTab: true,
+      })
+      streamRef.current = stream
+    } catch (err) {
+      console.error('Screen capture cancelled or failed:', err)
       setIsRecording(false)
       return null
     }
-
-    // Capture stream from the canvas
-    const stream = mapCanvas.captureStream(30)
 
     // Setup MediaRecorder
     const mimeTypes = [
@@ -112,12 +120,29 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
           if (mediaRecorder.state !== 'inactive') {
             mediaRecorder.stop()
           }
+          // Stop all tracks to end screen sharing
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop())
+            streamRef.current = null
+          }
           setIsRecording(false)
           setRecordingProgress(1)
           onComplete()
         }, 200)
       }
     }, 50)
+
+    // Handle user stopping the screen share manually
+    stream.getVideoTracks()[0].onended = () => {
+      if (mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop()
+      }
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+        progressIntervalRef.current = null
+      }
+      setIsRecording(false)
+    }
 
     return recordingPromise
   }, [])
@@ -130,6 +155,11 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
     }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop()
+    }
+    // Stop all tracks to end screen sharing
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
     }
     setIsRecording(false)
     setRecordingProgress(0)

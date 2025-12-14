@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,7 +12,6 @@ import MapStylePicker from '@/components/controls/MapStylePicker'
 import RouteStylePicker from '@/components/controls/RouteStylePicker'
 import OverlaySettingsPanel from '@/components/controls/OverlaySettings'
 import { useGpxParser, getPointAtDistance } from '@/hooks/useGpxParser'
-import { useScreenRecorder, downloadBlob } from '@/hooks/useScreenRecorder'
 import { 
   VideoSettings as VideoSettingsType, 
   RouteStyle, 
@@ -20,7 +19,7 @@ import {
   ASPECT_RATIOS,
   ParsedGpx 
 } from '@/types/gpx'
-import { ArrowLeft, Play, Pause, RotateCcw, Download, ChevronDown, ChevronUp, Settings, X } from 'lucide-react'
+import { ArrowLeft, Play, Pause, RotateCcw, ChevronDown, ChevronUp, Settings, X } from 'lucide-react'
 import { Feature, LineString } from 'geojson'
 
 interface EditorProps {
@@ -50,32 +49,25 @@ export default function Editor({ initialGpx }: EditorProps) {
   const [mapStyle, setMapStyle] = useState('outdoors')
 
   // Map style to overlay theme mapping
-  const getDefaultThemeForMapStyle = (style: string): OverlaySettings['theme'] => {
-    switch (style) {
-      case 'dark':
-        return 'shadow'
-      case 'light':
-        return 'light'
-      case 'streets':
-        return 'dark'
-      case 'satellite':
-        return 'glass'
-      case 'outdoors':
-      default:
-        return 'light'
-    }
+  const mapStyleToTheme: Record<string, OverlaySettings['theme']> = {
+    dark: 'shadow',
+    light: 'light',
+    streets: 'dark',
+    satellite: 'glass',
+    outdoors: 'light',
   }
 
-  const handleMapStyleChange = (style: string) => {
+  const handleMapStyleChange = useCallback((style: string) => {
     setMapStyle(style)
-    setOverlaySettings(prev => ({ ...prev, theme: getDefaultThemeForMapStyle(style) }))
-  }
+    setOverlaySettings(prev => ({ ...prev, theme: mapStyleToTheme[style] || 'light' }))
+  }, [])
 
   const [routeStyle, setRouteStyle] = useState<RouteStyle>({
     color: '#3b82f6',
     width: 4,
     opacity: 1,
     gradientType: 'none',
+    pinStyle: 'dot',
   })
 
   const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>({
@@ -94,7 +86,6 @@ export default function Editor({ initialGpx }: EditorProps) {
   const [progress, setProgress] = useState(0)
   const [showCompletion, setShowCompletion] = useState(false)
 
-  const { isRecording, recordingProgress, startRecording, cancelRecording } = useScreenRecorder()
   const [expandedPanels, setExpandedPanels] = useState({
     video: true,
     map: false,
@@ -122,15 +113,16 @@ export default function Editor({ initialGpx }: EditorProps) {
     ? [nextPointData.point.lon, nextPointData.point.lat]
     : null
 
-  const animatedGeojson: Feature<LineString> | null = gpxData?.geojson && currentPointData
-    ? {
-        ...gpxData.geojson,
-        geometry: {
-          type: 'LineString',
-          coordinates: gpxData.geojson.geometry.coordinates.slice(0, currentPointData.index + 1),
-        },
-      }
-    : null
+  const animatedGeojson = useMemo<Feature<LineString> | null>(() => {
+    if (!gpxData?.geojson || !currentPointData) return null
+    return {
+      ...gpxData.geojson,
+      geometry: {
+        type: 'LineString',
+        coordinates: gpxData.geojson.geometry.coordinates.slice(0, currentPointData.index + 1),
+      },
+    }
+  }, [gpxData?.geojson, currentPointData?.index])
 
   useEffect(() => {
     if (gpxData?.name && !overlaySettings.title) {
@@ -213,37 +205,6 @@ export default function Editor({ initialGpx }: EditorProps) {
     const file = e.target.files?.[0]
     if (file) {
       await parseFile(file)
-    }
-  }
-
-  const handleExport = async () => {
-    if (!track || isRecording || !containerRef.current) return
-
-    setProgress(0)
-    setShowCompletion(false)
-
-    // Real-time screen recording - records the canvas as animation plays
-    const blob = await startRecording({
-      duration: videoSettings.duration,
-      element: containerRef.current,
-      onStart: () => {
-        // Start playback when recording starts
-        setIsPlaying(true)
-      },
-      onProgress: (p) => {
-        setProgress(p)
-      },
-      onComplete: () => {
-        setIsPlaying(false)
-        if (videoSettings.storyMode) {
-          setTimeout(() => setShowCompletion(true), 400)
-        }
-      },
-    })
-
-    if (blob) {
-      const filename = `${overlaySettings.title || 'gpx-route'}-${videoSettings.aspectRatio}.webm`
-      downloadBlob(blob, filename.replace(/[/\\?%*:|"<>]/g, '-'))
     }
   }
 
@@ -493,11 +454,6 @@ export default function Editor({ initialGpx }: EditorProps) {
               )}
             </div>
 
-            {/* Desktop export hint */}
-            <p className="hidden md:block mt-2 text-xs text-muted-foreground text-center">
-              匯出影片需要較長時間，請耐心等候
-            </p>
-
             {/* Playback Controls */}
             <div className="mt-4 md:mt-6 flex flex-col gap-3 w-full max-w-xl">
               {/* Progress Row */}
@@ -544,17 +500,6 @@ export default function Editor({ initialGpx }: EditorProps) {
                   設定
                 </Button>
 
-                {isRecording ? (
-                  <Button onClick={cancelRecording} variant="destructive" size="sm">
-                    <X size={16} className="mr-2" />
-                    取消 ({Math.round(recordingProgress * 100)}%)
-                  </Button>
-                ) : (
-                  <Button onClick={handleExport} size="sm" className="hidden md:flex">
-                    <Download size={16} className="mr-2" />
-                    匯出影片
-                  </Button>
-                )}
 
                 <a
                   href="https://www.buymeacoffee.com/dorara"

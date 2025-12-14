@@ -9,7 +9,8 @@
       "Bash(npx tsc:*)",
       "Bash(pnpm build:*)",
       "Bash(pnpm tsc:*)",
-      "Bash(pnpm remove:*)"
+      "Bash(pnpm remove:*)",
+      "Bash(tree:*)"
     ]
   }
 }

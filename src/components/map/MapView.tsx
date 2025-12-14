@@ -1,7 +1,7 @@
-import { useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react'
+import { useRef, useCallback, useEffect, forwardRef, useImperativeHandle, memo } from 'react'
 import Map, { Source, Layer, MapRef, Marker } from 'react-map-gl/mapbox'
 import { Feature, LineString } from 'geojson'
-import { RouteStyle, MAP_STYLES } from '@/types/gpx'
+import { RouteStyle, MAP_STYLES, PIN_STYLES, PinStyle } from '@/types/gpx'
 import 'mapbox-gl/dist/mapbox-gl.css'
 
 interface MapViewProps {
@@ -20,6 +20,60 @@ interface MapViewProps {
 
 export interface MapViewHandle {
   getMapRef: () => MapRef | null
+}
+
+// Pin marker component
+function PinMarker({
+  pinStyle,
+  color,
+  bearing = 0
+}: {
+  pinStyle: PinStyle
+  color: string
+  bearing?: number
+}) {
+  const pinInfo = PIN_STYLES.find(p => p.id === pinStyle) || PIN_STYLES[0]
+
+  if (pinStyle === 'dot') {
+    return (
+      <div
+        className="w-4 h-4 rounded-full border-2 border-white shadow-lg"
+        style={{ backgroundColor: color }}
+      />
+    )
+  }
+
+  if (pinStyle === 'arrow') {
+    // bearing: 0=北, 90=東, 180=南, 270=西 (地理方位角)
+    // CSS rotate: 0=右, 90=下, 180=左, 270=上
+    // ➤ 預設指向右邊 (0deg in CSS)
+    // 要讓箭頭指向北 (bearing=0)，需要 rotate(-90deg)
+    // 公式: CSS角度 = bearing - 90
+    return (
+      <div
+        className="text-2xl drop-shadow-lg"
+        style={{
+          color,
+          transform: `rotate(${bearing - 90}deg)`,
+          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))',
+        }}
+      >
+        ➤
+      </div>
+    )
+  }
+
+  // For emoji-based pins (pin, bike, hiker, car)
+  return (
+    <div
+      className="text-2xl drop-shadow-lg"
+      style={{
+        filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.4))',
+      }}
+    >
+      {pinInfo.icon}
+    </div>
+  )
 }
 
 // Calculate bearing between two points
@@ -49,7 +103,8 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
 }, ref) => {
   const mapRef = useRef<MapRef>(null)
   const lastUpdateRef = useRef<number>(0)
-  const lastBearingRef = useRef<number>(0)
+  const lastBearingRef = useRef<number>(0) // 地圖旋轉角度 (story mode)
+  const markerBearingRef = useRef<number>(0) // 標記方向角度
 
   useImperativeHandle(ref, () => ({
     getMapRef: () => mapRef.current,
@@ -71,6 +126,18 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
     }
   }, [bounds, fitBounds, storyMode])
 
+  // 計算標記方向（不論是否在 story mode）
+  useEffect(() => {
+    if (currentPosition && nextPosition) {
+      const newBearing = calculateBearing(currentPosition, nextPosition)
+      let bearingDiff = newBearing - markerBearingRef.current
+      if (bearingDiff > 180) bearingDiff -= 360
+      if (bearingDiff < -180) bearingDiff += 360
+      // 平滑過渡
+      markerBearingRef.current = ((markerBearingRef.current + bearingDiff * 0.3) % 360 + 360) % 360
+    }
+  }, [currentPosition, nextPosition])
+
   // Story mode: follow current position with pitch and bearing
   useEffect(() => {
     if (storyMode && currentPosition && mapRef.current) {
@@ -82,19 +149,19 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
       const map = mapRef.current.getMap()
       if (map) {
         let targetBearing = lastBearingRef.current
-        
+
         if (nextPosition) {
           const newBearing = calculateBearing(currentPosition, nextPosition)
           let bearingDiff = newBearing - lastBearingRef.current
           if (bearingDiff > 180) bearingDiff -= 360
           if (bearingDiff < -180) bearingDiff += 360
-          
+
           // Smooth bearing - always interpolate slowly
           targetBearing = lastBearingRef.current + bearingDiff * 0.15
           targetBearing = ((targetBearing % 360) + 360) % 360
           lastBearingRef.current = targetBearing
         }
-        
+
         // Use easeTo for smooth transitions
         map.easeTo({
           center: [currentPosition[0], currentPosition[1]],
@@ -166,9 +233,13 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
 
       {currentPosition && (
         <Marker longitude={currentPosition[0]} latitude={currentPosition[1]}>
-          <div 
-            className="w-4 h-4 rounded-full border-2 border-white shadow-lg"
-            style={{ backgroundColor: routeStyle.color }}
+          <PinMarker
+            pinStyle={routeStyle.pinStyle}
+            color={routeStyle.color}
+            bearing={storyMode
+              ? markerBearingRef.current - lastBearingRef.current  // 補償地圖旋轉
+              : markerBearingRef.current  // 地圖不旋轉，直接使用方向
+            }
           />
         </Marker>
       )}
@@ -179,4 +250,4 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
 
 MapView.displayName = 'MapView'
 
-export default MapView
+export default memo(MapView)

@@ -1,6 +1,6 @@
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, ReferenceDot } from 'recharts'
 import { GpxTrack, OverlayTheme } from '@/types/gpx'
-import { useMemo } from 'react'
+import { useMemo, memo } from 'react'
 import { getOverlayStyles } from './overlayTheme'
 
 interface ElevationChartProps {
@@ -13,7 +13,7 @@ interface ElevationChartProps {
   scale?: number
 }
 
-export default function ElevationChart({
+export default memo(function ElevationChart({
   track,
   currentDistance,
   totalDistance,
@@ -145,4 +145,4 @@ export default function ElevationChart({
       </div>
     </div>
   )
-}
+})

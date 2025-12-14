@@ -1,4 +1,4 @@
-import { RouteStyle } from '@/types/gpx'
+import { RouteStyle, PIN_STYLES } from '@/types/gpx'
 
 interface RouteStylePickerProps {
   style: RouteStyle
@@ -68,6 +68,26 @@ export default function RouteStylePicker({ style, onChange }: RouteStylePickerPr
           onChange={e => onChange({ ...style, opacity: Number(e.target.value) })}
           className="w-full"
         />
+      </div>
+
+      <div>
+        <label className="text-sm text-muted-foreground mb-2 block">標記樣式</label>
+        <div className="flex gap-2 flex-wrap">
+          {PIN_STYLES.map(pin => (
+            <button
+              key={pin.id}
+              onClick={() => onChange({ ...style, pinStyle: pin.id })}
+              className={`w-9 h-9 rounded-lg border-2 transition-all hover:scale-110 flex items-center justify-center text-lg ${
+                style.pinStyle === pin.id
+                  ? 'border-foreground bg-accent scale-110'
+                  : 'border-muted bg-background hover:bg-accent/50'
+              }`}
+              title={pin.name}
+            >
+              {pin.icon}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

@@ -44,11 +44,23 @@ export interface MapStyle {
   url: string
 }
 
+export type PinStyle = 'dot' | 'pin' | 'arrow' | 'bike' | 'hiker' | 'car'
+
+export const PIN_STYLES: { id: PinStyle; name: string; icon: string }[] = [
+  { id: 'dot', name: '圓點', icon: '●' },
+  { id: 'pin', name: '圖釘', icon: '📍' },
+  { id: 'arrow', name: '箭頭', icon: '➤' },
+  { id: 'bike', name: '自行車', icon: '🚴' },
+  { id: 'hiker', name: '登山', icon: '🥾' },
+  { id: 'car', name: '汽車', icon: '🚗' },
+]
+
 export interface RouteStyle {
   color: string
   width: number
   opacity: number
   gradientType: 'none' | 'elevation' | 'speed'
+  pinStyle: PinStyle
 }
 
 export type OverlayTheme = 'dark' | 'light' | 'shadow' | 'glass'
