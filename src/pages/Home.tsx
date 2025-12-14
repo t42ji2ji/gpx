@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { motion } from "framer-motion"
 import { useCallback } from "react"
 import { useNavigate } from "react-router-dom"
-import { Upload, Map, Film, Settings } from "lucide-react"
+import { Upload, Map, Settings } from "lucide-react"
 import { useGpxParser } from "@/hooks/useGpxParser"
 
 const Home = () => {
