@@ -258,7 +258,7 @@ export default function Editor({ initialGpx }: EditorProps) {
               <span className="text-sm font-medium">啟用跟隨視角</span>
               <div
                 className={`relative w-11 h-6 rounded-full transition-colors ${
-                  videoSettings.storyMode ? 'bg-primary' : 'bg-muted'
+                  videoSettings.storyMode ? 'bg-green-500' : 'bg-muted'
                 }`}
               >
                 <div

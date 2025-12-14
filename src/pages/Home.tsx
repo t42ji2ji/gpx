@@ -35,7 +35,7 @@ const Home = () => {
 
     const features = [
         { icon: Map, title: '路線視覺化', desc: '在精美地圖上展示您的 GPX 路線' },
-        { icon: Film, title: '影片生成', desc: '自動生成路線動畫影片' },
+     
         { icon: Settings, title: '自訂樣式', desc: '調整地圖、路線和覆蓋元素' },
     ]
 
